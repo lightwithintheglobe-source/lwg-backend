@@ -87,12 +87,44 @@ app.get("/api/track/:id", (req, res) => {
 });
 
 // ==========================
-// ROOT
+// 🔧 ADMIN UPDATE API (NEW)
+// ==========================
+app.put("/api/update/:id", (req, res) => {
+    const id = req.params.id;
+    const { status, location } = req.body;
+
+    let orders = readOrders();
+
+    const index = orders.findIndex(o => o.trackingId === id);
+
+    if (index === -1) {
+        return res.status(404).json({
+            error: "Tracking ID not found"
+        });
+    }
+
+    // Update values
+    if (status) orders[index].status = status;
+    if (location) orders[index].location = location;
+
+    saveOrders(orders);
+
+    res.json({
+        success: true,
+        message: "Order updated successfully",
+        data: orders[index]
+    });
+});
+
+// ==========================
+// 🏠 ROOT
 // ==========================
 app.get("/", (req, res) => {
     res.send("🚀 LWG Logistics Backend is Running");
 });
 
+// ==========================
+// 🚀 START SERVER
 // ==========================
 const PORT = process.env.PORT || 5000;
 
