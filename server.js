@@ -8,55 +8,92 @@ app.use(express.json());
 
 const FILE = "./orders.json";
 
+// ==========================
+// 📦 HELPER FUNCTIONS
+// ==========================
+
 // Generate Tracking ID
 function generateTrackingId() {
     return "LWG" + Math.floor(100000 + Math.random() * 900000);
 }
 
-// Booking API
+// Read orders safely
+function readOrders() {
+    try {
+        if (!fs.existsSync(FILE)) return [];
+        const data = fs.readFileSync(FILE);
+        return JSON.parse(data);
+    } catch (err) {
+        return [];
+    }
+}
+
+// Save orders safely
+function saveOrders(data) {
+    fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+}
+
+// ==========================
+// 📦 BOOKING API
+// ==========================
 app.post("/api/book", (req, res) => {
     const data = req.body;
 
-    const trackingId = generateTrackingId();
-    data.trackingId = trackingId;
-    data.status = "Pending";
-    data.location = "Freetown";
-
-    let orders = [];
-
-    if (fs.existsSync(FILE)) {
-        orders = JSON.parse(fs.readFileSync(FILE));
+    if (!data || Object.keys(data).length === 0) {
+        return res.status(400).json({
+            error: "No booking data received"
+        });
     }
 
-    orders.push(data);
-    fs.writeFileSync(FILE, JSON.stringify(orders, null, 2));
+    const trackingId = generateTrackingId();
+
+    const newOrder = {
+        ...data,
+        trackingId,
+        status: "Pending",
+        location: "Freetown",
+        createdAt: new Date().toISOString()
+    };
+
+    const orders = readOrders();
+    orders.push(newOrder);
+    saveOrders(orders);
 
     res.json({
-        message: "Booking saved",
-        trackingId: trackingId
+        success: true,
+        trackingId
     });
 });
 
-// Tracking API
+// ==========================
+// 📍 TRACKING API
+// ==========================
 app.get("/api/track/:id", (req, res) => {
     const id = req.params.id;
 
-    if (!fs.existsSync(FILE)) {
-        return res.json({ error: "No orders found" });
-    }
-
-    const orders = JSON.parse(fs.readFileSync(FILE));
-
+    const orders = readOrders();
     const order = orders.find(o => o.trackingId === id);
 
     if (!order) {
-        return res.json({ error: "Tracking ID not found" });
+        return res.status(404).json({
+            error: "Tracking ID not found"
+        });
     }
 
-    res.json(order);
+    res.json({
+        success: true,
+        data: order
+    });
 });
 
-// PORT FIX FOR RENDER
+// ==========================
+// ROOT
+// ==========================
+app.get("/", (req, res) => {
+    res.send("🚀 LWG Logistics Backend is Running");
+});
+
+// ==========================
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
